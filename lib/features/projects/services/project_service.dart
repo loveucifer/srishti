@@ -10,6 +10,19 @@ class ProjectService {
     final response = await _client.from('projects').select().order('created_at');
     return response.map((item) => Project.fromJson(item)).toList();
   }
+
+  // NEW METHOD: Add this method to create a project.
+  Future<void> createProject({
+    required String name,
+    String? description,
+  }) async {
+    final userId = _client.auth.currentUser!.id;
+    await _client.from('projects').insert({
+      'name': name,
+      'description': description,
+      'user_id': userId,
+    });
+  }
 }
 
 // A provider to make the ProjectService available throughout the app
