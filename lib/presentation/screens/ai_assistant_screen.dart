@@ -1,55 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_syntax_view/flutter_syntax_view.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:srishti/core/services/ai_service.dart';
+import 'package:srishti/models/chat_message_model.dart';
 import 'package:srishti/presentation/widgets/gradient_background.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
   const AiAssistantScreen({super.key});
-
   @override
   ConsumerState<AiAssistantScreen> createState() => _AiAssistantScreenState();
 }
 
 class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final _promptController = TextEditingController();
-  String? _generatedCode;
+  final List<ChatMessage> _messages = [];
   bool _isLoading = false;
-  String? _error;
 
-  Future<void> _handleGenerate() async {
+  Future<void> _sendMessage() async {
     if (_promptController.text.isEmpty) return;
+    final prompt = _promptController.text;
+    _promptController.clear();
     FocusScope.of(context).unfocus();
 
     setState(() {
+      _messages.add(ChatMessage(role: ChatMessageRole.user, content: prompt));
       _isLoading = true;
-      _error = null;
-      _generatedCode = null;
     });
 
-    // --- START OF NEW DEBUGGING CODE ---
     try {
-      print("Attempting to call AI service...");
-      final code = await ref.read(aiServiceProvider).generateCode(_promptController.text);
-      print("AI service call successful.");
+      final response = await ref.read(aiServiceProvider).getAiResponse(_messages);
       setState(() {
-        _generatedCode = code;
+        _messages.add(ChatMessage(role: ChatMessageRole.assistant, content: response));
       });
     } catch (e) {
-      // This will catch any error during the function call and print it.
-      print("!!! An error occurred: $e");
       setState(() {
-        _error = "An error occurred: ${e.toString()}";
+        _messages.add(ChatMessage(role: ChatMessageRole.assistant, content: "Error: ${e.toString()}"));
       });
     } finally {
-      // --- END OF NEW DEBUGGING CODE ---
       setState(() {
         _isLoading = false;
       });
     }
   }
 
-  // ... the rest of your file (build methods, etc.) remains exactly the same
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -61,65 +56,32 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             title: Text('Srishti AI', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontSize: 24, color: Colors.white)),
             backgroundColor: Colors.transparent,
             elevation: 0,
-            actions: [
-              IconButton(onPressed: () {}, icon: const Icon(Icons.folder_outlined))
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: _messages.isEmpty
+                    ? const Center(child: Text("Ask Srishti to build something...", style: TextStyle(color: Colors.white54, fontSize: 18)))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _messages.length,
+                        itemBuilder: (context, index) {
+                          final message = _messages[index];
+                          return ChatMessageWidget(message: message);
+                        },
+                      ),
+              ),
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              _buildPromptInput(),
             ],
           ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: _buildContentArea(),
-            ),
-          ),
         ),
       ],
     );
-  }
-
-  Widget _buildContentArea() {
-    if (_generatedCode == null && !_isLoading && _error == null) {
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text("Build something amazing", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 24),
-          _buildPromptInput(),
-        ],
-      );
-    }
-    return Column(
-      children: [
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _buildResponseArea(),
-          ),
-        ),
-        _buildPromptInput(),
-      ],
-    );
-  }
-
-  Widget _buildResponseArea() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_error != null) {
-      return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
-    }
-    if (_generatedCode != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: SyntaxView(
-          code: _generatedCode!,
-          syntax: Syntax.DART,
-          syntaxTheme: SyntaxTheme.vscodeDark(),
-          expanded: true,
-          withLinesCount: true,
-        ),
-      );
-    }
-    return const SizedBox.shrink();
   }
 
   Widget _buildPromptInput() {
@@ -139,21 +101,120 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             controller: _promptController,
             style: const TextStyle(color: Colors.white, fontSize: 16),
             decoration: InputDecoration(
-              hintText: "Ask Srishti to create a landing page for...",
+              hintText: "Message Srishti...",
               hintStyle: const TextStyle(color: Colors.white54),
               contentPadding: const EdgeInsets.all(20),
               border: InputBorder.none,
               suffixIcon: IconButton(
                 padding: const EdgeInsets.only(right: 12),
-                onPressed: _isLoading ? null : _handleGenerate,
+                onPressed: _isLoading ? null : _sendMessage,
                 icon: const Icon(Icons.arrow_upward_rounded, size: 24),
                 color: Colors.white,
               ),
             ),
-            onSubmitted: (_) => _handleGenerate(),
+            onSubmitted: _isLoading ? null : (_) => _sendMessage(),
           ),
         ),
       ),
+    );
+  }
+}
+
+class ChatMessageWidget extends StatelessWidget {
+  final ChatMessage message;
+  const ChatMessageWidget({super.key, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = message.role == ChatMessageRole.user;
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: isUser ? Colors.blue.withOpacity(0.5) : Colors.black.withOpacity(0.5),
+            child: Icon(isUser ? Icons.person_outline : Icons.auto_awesome, color: Colors.white),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isUser ? "You" : "Srishti",
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                MarkdownBody(
+                  data: message.content,
+                  selectable: true,
+                  styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                    p: const TextStyle(color: Colors.white, fontSize: 16),
+                    code: GoogleFonts.getFont('JetBrains Mono', textStyle: const TextStyle(backgroundColor: Colors.transparent, color: Colors.lightBlueAccent)),
+                  ),
+                  builders: {
+                    // CORRECTED: Target 'codeblock' instead of 'code'
+                    'codeblock': CopyableCodeBlockBuilder(),
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CopyableCodeBlockBuilder extends MarkdownElementBuilder {
+  @override
+  Widget visit(element, parent) {
+    final String text = element.textContent.trim();
+    return CopyableCodeBlock(code: text);
+  }
+}
+
+class CopyableCodeBlock extends StatelessWidget {
+  final String code;
+  const CopyableCodeBlock({super.key, required this.code});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          child: Text(
+            code,
+            style: GoogleFonts.getFont('JetBrains Mono', textStyle: const TextStyle(color: Colors.white, fontSize: 14)),
+          ),
+        ),
+        Positioned(
+          top: 12,
+          right: 4,
+          child: IconButton(
+            icon: const Icon(Icons.copy_all_outlined, size: 18, color: Colors.white70),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: code));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Code copied to clipboard!'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            tooltip: 'Copy code',
+          ),
+        ),
+      ],
     );
   }
 }

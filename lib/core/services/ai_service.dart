@@ -1,26 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:srishti/core/services/supabase_service.dart';
+import 'package:srishti/models/chat_message_model.dart'; // Import the new model
 
 class AiService {
   final _client = SupabaseService.client;
 
-  Future<String> generateCode(String prompt) async {
-    // This calls our live Supabase Edge Function
+  // Update the method to accept a list of messages
+  Future<String> getAiResponse(List<ChatMessage> messages) async {
     final response = await _client.functions.invoke(
       'generate-code',
-      body: {'prompt': prompt},
+      // Pass the list of messages in the body
+      body: {'messages': messages.map((m) => m.toJson()).toList()},
     );
 
-    // This block correctly checks for an 'error' key in the JSON data
-    // returned BY THE FUNCTION if our TypeScript code catches an error.
     if (response.data is Map && response.data['error'] != null) {
-      throw Exception('Failed to generate code: ${response.data['error']}');
+      throw Exception('Failed to get response: ${response.data['error']}');
     }
 
-    // The incorrect block that checked for 'response.error' has been removed.
-    // Any network or server errors will be caught by the try/catch in the UI.
-
-    return response.data['code'];
+    // The edge function now returns 'content' instead of 'code'
+    return response.data['content'];
   }
 }
 
