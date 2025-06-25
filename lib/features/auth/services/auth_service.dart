@@ -1,6 +1,6 @@
-
 import 'package:flutter/material.dart';
-import 'package:srishti/core/services/supabase_service.dart';
+// CORRECTED: The import path now points to the new 'features' directory structure.
+import 'package:srishti/features/core/services/supabase_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {

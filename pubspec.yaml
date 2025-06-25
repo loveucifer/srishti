@@ -2,7 +2,7 @@ name: srishti
 description: "Srishti: The Intelligent Creation Engine."
 
 # Prevent accidental publishing to pub.dev.
-publish_to: 'none' 
+publish_to: 'none'
 
 # The following defines the version and build number for your application.
 version: 1.0.0+1
@@ -14,12 +14,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  
+
   # For Supabase integration (database, auth, storage)
   supabase_flutter: ^2.5.3
 
   # For loading environment variables from the .env file
   flutter_dotenv: ^5.1.0
+
+  # For state management
+  flutter_riverpod: ^2.5.1
 
   # For elegant and modern fonts
   google_fonts: ^6.2.1
@@ -27,7 +30,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
+
   flutter_lints: ^3.0.0
 
 # The following section is specific to Flutter packages.
@@ -35,6 +38,16 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # This makes the .env file available to the app at runtime.
+  # This makes the .env file and fonts available to the app at runtime.
   assets:
     - .env
+    - assets/fonts/
+
+  fonts:
+    - family: Satoshi
+      fonts:
+        - asset: assets/fonts/Satoshi-Regular.ttf
+    - family: ClashDisplay
+      fonts:
+        - asset: assets/fonts/ClashDisplay-Bold.ttf
+          weight: 700

@@ -1,4 +1,3 @@
-
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -14,7 +13,7 @@ class AuthForm extends StatefulWidget {
 
 class _AuthFormState extends State<AuthForm> {
   final _authService = AuthService();
-  
+
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -33,7 +32,7 @@ class _AuthFormState extends State<AuthForm> {
 
   Future<void> _handleAuth() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
 
     try {
@@ -119,12 +118,18 @@ class _AuthFormState extends State<AuthForm> {
   }
 
   // --- WIDGET BUILDER HELPERS ---
-  
+
   Widget _buildHeader() => Column(
     children: [
-      Text('Srishti', style: GoogleFonts.poppins(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white)),
+      // Use the headlineLarge style from the theme, which is ClashDisplay
+      Text('Srishti', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontSize: 48, color: Colors.white)),
       const SizedBox(height: 8),
-      Text('The Intelligent Creation Engine', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[400], fontSize: 16)),
+      Text(
+        'The Intelligent Creation Engine',
+        textAlign: TextAlign.center,
+        // The default body text will use Satoshi
+        style: TextStyle(color: Colors.grey[400], fontSize: 16)
+      ),
     ],
   );
 

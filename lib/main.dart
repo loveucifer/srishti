@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:srishti/app.dart';
-import 'package:srishti/core/services/supabase_service.dart';
+// Note the updated path for SupabaseService
+import 'package:srishti/features/core/services/supabase_service.dart';
 
 Future<void> main() async {
   // Ensure Flutter engine is ready.
@@ -12,6 +14,7 @@ Future<void> main() async {
 
   // Initialize the Supabase service.
   await SupabaseService.initialize();
-  
-  runApp(const SrishtiApp());
+
+  // Wrap the app in a ProviderScope for Riverpod state management.
+  runApp(const ProviderScope(child: SrishtiApp()));
 }
