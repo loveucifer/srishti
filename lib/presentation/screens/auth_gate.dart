@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:srishti/core/services/supabase_service.dart';
-import 'package:srishti/presentation/screens/ai_assistant_screen.dart';
 import 'package:srishti/presentation/screens/auth_screen.dart';
+import 'package:srishti/presentation/screens/ide_screen.dart'; // Import the new IDE screen
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthGate extends StatelessWidget {
@@ -15,9 +15,12 @@ class AuthGate extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
+
         if (snapshot.hasData && snapshot.data?.session != null) {
-          return const AiAssistantScreen();
+          // User is logged in, show the new IdeScreen.
+          return const IdeScreen();
         } else {
+          // User is not logged in, show the AuthScreen.
           return const AuthScreen();
         }
       },

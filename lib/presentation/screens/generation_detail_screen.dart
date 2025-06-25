@@ -10,7 +10,7 @@ class GenerationDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // We create two "fake" chat messages to display the saved content
+    // We create two "fake" chat messages from the saved data to display
     final userMessage = ChatMessage(role: ChatMessageRole.user, content: project.name);
     final assistantMessage = ChatMessage(role: ChatMessageRole.assistant, content: project.content ?? "No content saved.");
 
@@ -20,7 +20,7 @@ class GenerationDetailScreen extends StatelessWidget {
         Scaffold(
           backgroundColor: Colors.transparent,
           appBar: AppBar(
-            title: Text(project.name, overflow: TextOverflow.ellipsis),
+            title: Text(project.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)),
             backgroundColor: Colors.transparent,
             elevation: 0,
           ),

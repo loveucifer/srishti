@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:srishti/core/services/project_service.dart'; // <--- IMPORT ADDED
+import 'package:srishti/core/services/project_service.dart';
 import 'package:srishti/models/project_model.dart';
 import 'package:srishti/presentation/screens/generation_detail_screen.dart';
 import 'package:srishti/presentation/widgets/gradient_background.dart';
@@ -10,7 +10,7 @@ class SavedGenerationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // This line will now work correctly
+    // Use the provider we already have to fetch the projects/generations
     final projectsAsyncValue = ref.watch(projectsProvider);
 
     return Stack(
@@ -33,6 +33,7 @@ class SavedGenerationsScreen extends ConsumerWidget {
                   ),
                 );
               }
+              // Display the list of saved generations
               return ListView.builder(
                 padding: const EdgeInsets.all(16.0),
                 itemCount: projects.length,
@@ -53,6 +54,7 @@ class SavedGenerationsScreen extends ConsumerWidget {
   }
 }
 
+// A card widget to display a single saved generation
 class GenerationCard extends StatelessWidget {
   const GenerationCard({super.key, required this.project});
   final Project project;
@@ -70,7 +72,7 @@ class GenerationCard extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         leading: const Icon(Icons.history_edu_outlined, color: Colors.white70),
         title: Text(
-          project.name,
+          project.name, // The user's original prompt
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           overflow: TextOverflow.ellipsis,
           maxLines: 2,
@@ -81,6 +83,7 @@ class GenerationCard extends StatelessWidget {
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.white54),
         onTap: () {
+          // Navigate to a detail screen to view the full content
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => GenerationDetailScreen(project: project),
