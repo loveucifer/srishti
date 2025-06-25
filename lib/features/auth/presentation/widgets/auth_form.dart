@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:srishti/features/auth/services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -51,7 +50,7 @@ class _AuthFormState extends State<AuthForm> {
         // Switch to login view after successful signup
         setState(() => _isLoginView = true);
       }
-      // On successful login, a listener elsewhere in the app would navigate.
+      // Navigation is now handled by the AuthGate.
     } on AuthException catch (e) {
       _authService.showAuthMessage(context, e.message);
     } catch (e) {
@@ -121,13 +120,11 @@ class _AuthFormState extends State<AuthForm> {
 
   Widget _buildHeader() => Column(
     children: [
-      // Use the headlineLarge style from the theme, which is ClashDisplay
       Text('Srishti', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontSize: 48, color: Colors.white)),
       const SizedBox(height: 8),
       Text(
         'The Intelligent Creation Engine',
         textAlign: TextAlign.center,
-        // The default body text will use Satoshi
         style: TextStyle(color: Colors.grey[400], fontSize: 16)
       ),
     ],

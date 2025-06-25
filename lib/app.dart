@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:srishti/features/auth/presentation/screens/auth_screen.dart';
+import 'package:srishti/features/auth/presentation/screens/auth_gate.dart';
 
 class SrishtiApp extends StatelessWidget {
   const SrishtiApp({super.key});
@@ -7,18 +7,15 @@ class SrishtiApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Srishti AI',
+      title: 'Srishti',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: Colors.white,
         scaffoldBackgroundColor: const Color(0xff0a0a0a),
-        // Use the new Satoshi font for the base theme.
         fontFamily: 'Satoshi',
         textTheme: const TextTheme(
-          // Example of using a specific font for headlines
           headlineLarge: TextStyle(fontFamily: 'ClashDisplay', fontWeight: FontWeight.bold),
-          // Other text styles will inherit Satoshi
         ),
         colorScheme: const ColorScheme.dark(
           primary: Colors.white,
@@ -26,7 +23,8 @@ class SrishtiApp extends StatelessWidget {
           error: Colors.redAccent,
         )
       ),
-      home: const AuthScreen(),
+      // Set the AuthGate as the home widget.
+      home: const AuthGate(),
     );
   }
 }
