@@ -27,6 +27,7 @@ dependencies:
   # For elegant and modern fonts
   google_fonts: ^6.2.1
   drag_and_drop_lists: ^0.4.2
+  flutter_syntax_view: ^4.1.7
 
 dev_dependencies:
   flutter_test:
