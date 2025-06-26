@@ -1,40 +1,86 @@
-// lib/core/services/ai_service.dart
-
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:srishti/models/chat_message_model.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:srishti/core/services/supabase_service.dart'; // <-- This import is crucial
 
-// CORRECTED: Define the provider so the UI can access the service.
-final aiServiceProvider = Provider((ref) => AIService());
+// Using ref.read in a provider is best practice to avoid unnecessary rebuilds.
+final aiServiceProvider = Provider((ref) {
+  // Switched from ref.watch to ref.read.
+  final supabaseService = ref.read(supabaseServiceProvider); 
+  final generativeModel = supabaseService.getGenerativeModel();
+  if (generativeModel == null) {
+    throw Exception("Generative Model could not be initialized. Check your API key.");
+  }
+  return AiService(generativeModel);
+});
 
-class AIService {
-  final _supabase = Supabase.instance.client;
+/// A structured response from the AI, separating different content types.
+class AiResponse {
+  final String originalText;
+  final String? htmlCode;
+  final String? terminalOutput;
 
-  // This method is called by the UI.
-  Future<String> getAiResponse(List<ChatMessage> messages) async {
+  AiResponse({required this.originalText, this.htmlCode, this.terminalOutput});
+}
+
+class AiService {
+  final GenerativeModel _model;
+
+  AiService(this._model);
+
+  /// Generates content using the AI model and parses the response.
+  Future<AiResponse> generateContent(String prompt) async {
     try {
-      // The body now correctly maps the messages list to a list of JSON maps.
-      final response = await _supabase.functions.invoke('ai-chat',
-          body: {'messages': messages.map((m) => m.toJson()).toList()});
+      final fullPrompt = """
+You are Srishti, an AI assistant in an IDE.
+- For HTML code, wrap it in a markdown block: ```html\n...code...\n```
+- For terminal commands, wrap them in a block: ```bash\n...commands...\n```
+- For plain text, provide the text without code blocks.
 
-      if (response.status == 200) {
-        // Assuming the edge function returns a map with a 'reply' key.
-        return response.data['reply'] as String;
-      } else {
-        throw Exception(
-            'Failed to get AI response: ${response.status} ${response.data}');
-      }
+User prompt: "$prompt"
+""";
+      final response = await _model.generateContent([Content.text(fullPrompt)]);
+      final responseText = response.text ?? 'Sorry, I could not generate a response.';
+      return _parseResponse(responseText);
     } catch (e) {
-      print('Error invoking Supabase function: $e');
-      rethrow;
+      print('Error generating content: $e');
+      return AiResponse(originalText: "Error: ${e.toString()}");
     }
   }
 
-  // This is a helper function that can be used if needed.
-  String extractHtmlContent(String response) {
-    final codeBlockRegex = RegExp(r"```html\s*([\s\S]+?)\s*```");
-    final match = codeBlockRegex.firstMatch(response);
-    return match?.group(1) ?? response;
+  /// Parses the raw text from the AI to extract code blocks.
+  AiResponse _parseResponse(String text) {
+    String? html;
+    String? terminal;
+
+    final htmlRegex = RegExp(r"```html\s*\n(.*?)\n```", dotAll: true, caseSensitive: false);
+    final terminalRegex = RegExp(r"```(bash|sh)\s*\n(.*?)\n```", dotAll: true, caseSensitive: false);
+
+    final htmlMatch = htmlRegex.firstMatch(text);
+    if (htmlMatch != null) {
+      html = htmlMatch.group(1)?.trim();
+    }
+
+    final terminalMatch = terminalRegex.firstMatch(text);
+    if (terminalMatch != null) {
+      terminal = terminalMatch.group(2)?.trim();
+    }
+
+    String chatText = text.replaceAll(htmlRegex, '').replaceAll(terminalRegex, '').trim();
+    if (chatText.isEmpty) {
+      if (html != null) {
+        chatText = "Here's the HTML code you requested.";
+      } else if (terminal != null) {
+        chatText = "Here are the terminal commands.";
+      } else {
+        chatText = text;
+      }
+    }
+
+    return AiResponse(
+      originalText: chatText,
+      htmlCode: html,
+      terminalOutput: terminal
+    );
   }
 }

@@ -1,329 +1,161 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:srishti/core/services/ai_service.dart';
-import 'package:srishti/core/services/project_service.dart';
+import 'package:srishti/core/utils/html_stubs.dart'; // <-- This import is crucial
 import 'package:srishti/models/chat_message_model.dart';
-import 'package:srishti/presentation/screens/saved_generations_screen.dart';
 import 'package:srishti/presentation/widgets/gradient_background.dart';
-// Ensure this import is correct and present to access global providers like htmlContentProvider and terminalOutputProvider
-import 'package:srishti/presentation/screens/canvas_pane.dart';
 
+// Provides the HTML content for the live preview canvas.
+// The 'initialHtmlContent' is now correctly referenced from the imported stub file.
+final htmlContentProvider = StateProvider<String>((ref) => initialHtmlContent);
 
-// Represents a chunk of content, either plain text or a code block
-class ContentChunk {
-  final String type; // 'text' or 'code'
-  final String content;
-  ContentChunk({required this.type, required this.content});
-}
+// Provides the output for the terminal pane.
+final terminalOutputProvider = StateProvider<String>((ref) => 'Srishti Terminal\n>');
 
-// Provider to hold the chat messages, making state accessible everywhere
-final messagesProvider = StateProvider<List<ChatMessage>>((ref) => []);
-// Provider to track loading state
-final isLoadingProvider = StateProvider<bool>((ref) => false);
+// Provides the list of messages in the AI chat.
+final chatMessagesProvider = StateProvider<List<ChatMessage>>((ref) => []);
 
-
-// The main screen is now a stateless ConsumerWidget.
-// All state is handled by the providers above.
-class AiAssistantScreen extends ConsumerWidget {
-  const AiAssistantScreen({super.key});
+class AiAssistantScreen extends ConsumerStatefulWidget {
+  const AiAssistantScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // The TextEditingController can be created here, no need for a stateful widget.
-    final promptController = TextEditingController();
-    final messages = ref.watch(messagesProvider);
-    // Corrected: Watch the isLoadingProvider, not a local variable named 'isLoading'
-    final isLoading = ref.watch(isLoadingProvider);
-
-    // This method is now defined inside build where it has access to ref and context
-    Future<void> sendMessage() async {
-      if (promptController.text.isEmpty) return;
-      final prompt = promptController.text;
-      promptController.clear();
-      FocusScope.of(context).unfocus();
-
-      // Update state purely through Riverpod providers
-      ref.read(isLoadingProvider.notifier).state = true;
-      ref.read(messagesProvider.notifier).update((state) => [...state, ChatMessage(role: ChatMessageRole.user, content: prompt)]);
-
-      try {
-        final response = await ref.read(aiServiceProvider).getAiResponse(ref.read(messagesProvider));
-        ref.read(messagesProvider.notifier).update((state) => [...state, ChatMessage(role: ChatMessageRole.assistant, content: response)]);
-
-        // Check if the AI response contains HTML code and update the preview
-        final regex = RegExp(r"```html\s*([\s\S]*?)\s*```", multiLine: true);
-        final match = regex.firstMatch(response);
-
-        if (match != null && match.group(1) != null) {
-          final htmlCode = match.group(1)!.trim();
-          // Access htmlContentProvider using ref.read() as it's a global provider
-          // This line requires htmlContentProvider to be a top-level final variable in canvas_pane.dart
-          ref.read(htmlContentProvider.notifier).state = htmlCode;
-        } else {
-          // If no HTML code block is found, you might want to clear the preview
-          // For now, let's just keep the existing content or show a placeholder for non-HTML responses
-          // ref.read(htmlContentProvider.notifier).state = '<html><body><h1 style="color: grey; text-align: center; margin-top: 50px;">No HTML preview available.</h1></body></html>';
-        }
-
-      } catch (e) {
-        ref.read(messagesProvider.notifier).update((state) => [...state, ChatMessage(role: ChatMessageRole.assistant, content: "Error: ${e.toString()}")]);
-        // Also update terminal/preview with error
-        // Access terminalOutputProvider using ref.read() as it's a global provider
-        // This line requires terminalOutputProvider to be a top-level final variable in canvas_pane.dart
-        ref.read(terminalOutputProvider.notifier).state = "Error: ${e.toString()}";
-        // Access htmlContentProvider using ref.read() as it's a global provider
-        // This line requires htmlContentProvider to be a top-level final variable in canvas_pane.dart
-        ref.read(htmlContentProvider.notifier).state = '<html><body><h1 style="color: red; text-align: center; margin-top: 50px;">Error generating content.</h1></body></html>';
-      } finally {
-        ref.read(isLoadingProvider.notifier).state = false;
-      }
-    }
-
-    return Stack(
-      children: [
-        const GradientBackground(),
-        Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            title: Text('Srishti AI', style: Theme.of(context).textTheme.headlineLarge?.copyWith(fontSize: 24, color: Colors.white)),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: TextButton.icon(
-                  onPressed: () {
-                    // This will fetch the latest saved generations when the history page is opened
-                    ref.invalidate(projectsProvider);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (context) => const SavedGenerationsScreen()),
-                    );
-                  },
-                  icon: const Icon(Icons.history, size: 20),
-                  label: const Text('History'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                ),
-              )
-            ],
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: messages.isEmpty
-                    ? const Center(child: Text("Ask Srishti to build something...", style: TextStyle(color: Colors.white54, fontSize: 18)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: messages.length,
-                        itemBuilder: (context, index) {
-                          final message = messages[index];
-                          // Pass ref to ChatMessageWidget as it's now a ConsumerWidget
-                          return ChatMessageWidget(message: message);
-                        },
-                      ),
-              ),
-              if (isLoading) // Corrected: Use the watched 'isLoading' variable
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Material(
-                  elevation: 8,
-                  borderRadius: BorderRadius.circular(16),
-                  shadowColor: Colors.black.withOpacity(0.5),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xff1c1c1c),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    ),
-                    child: TextField(
-                      controller: promptController,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                      decoration: InputDecoration(
-                        hintText: "Message Srishti...",
-                        hintStyle: const TextStyle(color: Colors.white54),
-                        contentPadding: const EdgeInsets.all(20),
-                        border: InputBorder.none,
-                        suffixIcon: IconButton(
-                          padding: const EdgeInsets.only(right: 12),
-                          onPressed: isLoading ? null : sendMessage, // Corrected: Use 'isLoading' variable
-                          icon: const Icon(Icons.arrow_upward_rounded, size: 24),
-                          color: Colors.white,
-                        ),
-                      ),
-                      onSubmitted: isLoading ? null : (_) => sendMessage(), // Corrected: Use 'isLoading' variable
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
+  ConsumerState<AiAssistantScreen> createState() => _AiAssistantScreenState();
 }
 
-// Converted to ConsumerWidget to access Riverpod ref for saving generations
-class ChatMessageWidget extends ConsumerWidget {
-  final ChatMessage message;
-  const ChatMessageWidget({super.key, required this.message});
-
-  // Parses content to separate plain text from code blocks
-  List<ContentChunk> _parseContent(String content) {
-    final chunks = <ContentChunk>[];
-    // Regex to find blocks enclosed by triple backticks (```)
-    final regex = RegExp(r"```(?:\w*\n)?([\s\S]*?)```", multiLine: true);
-    int lastEnd = 0;
-    for (final match in regex.allMatches(content)) {
-      // Add text before the code block
-      if (match.start > lastEnd) {
-        chunks.add(ContentChunk(type: 'text', content: content.substring(lastEnd, match.start)));
-      }
-      // Add the code block itself
-      chunks.add(ContentChunk(type: 'code', content: match.group(0)!));
-      lastEnd = match.end;
-    }
-    // Add any remaining text after the last code block
-    if (lastEnd < content.length) {
-      chunks.add(ContentChunk(type: 'text', content: content.substring(lastEnd)));
-    }
-    return chunks;
-  }
+class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
+  final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) { // Added WidgetRef ref
-    final isUser = message.role == ChatMessageRole.user;
-    final chunks = isUser ? [ContentChunk(type: 'text', content: message.content)] : _parseContent(message.content);
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+  
+  void _scrollToBottom() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+              _scrollController.animateTo(
+                  _scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+              );
+          }
+      });
+  }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: isUser ? Colors.blue.withOpacity(0.5) : Colors.black.withOpacity(0.5),
-            child: Icon(isUser ? Icons.person_outline : Icons.auto_awesome, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      isUser ? "You" : "Srishti",
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                    const Spacer(),
-                    if (!isUser) // Show save button only for AI messages
-                      IconButton(
-                        icon: const Icon(Icons.save_alt_outlined, size: 20, color: Colors.white70),
-                        tooltip: 'Save Generation',
-                        onPressed: () async {
-                           // Access ProjectService via ref to save the generation
-                           try {
-                             // Assuming the first message in the list is the user's prompt
-                             final userPrompt = ref.read(messagesProvider.notifier).state.firstWhere(
-                               (msg) => msg.role == ChatMessageRole.user,
-                               // Ensure ChatMessage constructor is const if used in orElse
-                               orElse: () => const ChatMessage(role: ChatMessageRole.user, content: 'Untitled Generation'),
-                             ).content;
+  void _sendMessage() async {
+    final text = _controller.text;
+    if (text.isEmpty) return;
 
-                             await ref.read(projectServiceProvider).saveGeneration(
-                               name: userPrompt, // Use the user's prompt as the project name
-                               content: message.content, // Save the full AI response
-                               // When saving to Supabase, we might want to also save the 'files' map
-                               // For now, let's just save 'content'. If 'files' needs to be saved,
-                               // the ProjectService.saveGeneration method and Supabase schema would need to be updated.
-                             );
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(
-                                 content: Text('Generation saved successfully!'),
-                                 behavior: SnackBarBehavior.floating,
-                                 backgroundColor: Colors.green,
-                               ),
-                             );
-                           } catch (e) {
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               SnackBar(
-                                 content: Text('Failed to save generation: ${e.toString()}'),
-                                 behavior: SnackBarBehavior.floating,
-                                 backgroundColor: Colors.red,
-                               ),
-                             );
-                           }
-                        },
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ...chunks.map((chunk) {
-                  if (chunk.type == 'text' && chunk.content.trim().isNotEmpty) {
-                    return SelectableText(chunk.content.trim(), style: const TextStyle(color: Colors.white, fontSize: 16));
-                  } else if (chunk.type == 'code') {
-                    // Remove leading/trailing code block markers and language specifier (if any)
-                    final codeContent = chunk.content.replaceAll(RegExp(r"^```(\w*\n)?|```$"), "").trim();
-                    return CopyableCodeBlock(code: codeContent);
-                  } else {
-                    return const SizedBox.shrink();
-                  }
-                }).toList(),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  } // The closing brace for the build method was missing or misplaced, now corrected.
-}
+    final userMessage = ChatMessage(text: text, isUser: true);
+    ref.read(chatMessagesProvider.notifier).update((state) => [...state, userMessage]);
+    _scrollToBottom();
 
-class CopyableCodeBlock extends StatelessWidget {
-  final String code;
-  const CopyableCodeBlock({super.key, required this.code});
+    _controller.clear();
+
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      final response = await aiService.generateContent(text);
+
+      final botMessage = ChatMessage(text: response.originalText, isUser: false);
+      ref.read(chatMessagesProvider.notifier).update((state) => [...state, botMessage]);
+      _scrollToBottom();
+      
+      if (response.htmlCode != null && response.htmlCode!.isNotEmpty) {
+        ref.read(htmlContentProvider.notifier).state = response.htmlCode!;
+      }
+      
+      if (response.terminalOutput != null && response.terminalOutput!.isNotEmpty) {
+        ref.read(terminalOutputProvider.notifier).update(
+          (state) => '$state\$ $text\n${response.terminalOutput!}\n>',
+        );
+      }
+
+    } catch (e) {
+      final errorMessage = ChatMessage(text: "An error occurred: ${e.toString()}", isUser: false);
+      ref.read(chatMessagesProvider.notifier).update((state) => [...state, errorMessage]);
+      _scrollToBottom();
+      
+      ref.read(terminalOutputProvider.notifier).update((state) => "$state\nError: ${e.toString()}\n>");
+      
+      ref.read(htmlContentProvider.notifier).state = '''
+        <html><body><div style="color: red; text-align: center; padding-top: 50px; font-family: sans-serif;">
+          <h1>Error Generating Content</h1>
+          <p>${e.toString()}</p>
+        </div></body></html>
+      ''';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Stack(
+    final messages = ref.watch(chatMessagesProvider);
+    ref.listen(chatMessagesProvider, (_, __) => _scrollToBottom());
+
+    return GradientBackground(
+      child: Column(
         children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 40, 16, 16),
-            child: Text(
-              code.trim(),
-              style: GoogleFonts.getFont('JetBrains Mono', textStyle: const TextStyle(color: Colors.white, fontSize: 14)),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: IconButton(
-              icon: const Icon(Icons.copy_all_outlined, size: 18, color: Colors.white70),
-              tooltip: 'Copy code',
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: code.trim()));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Code copied to clipboard!'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.green,
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(8.0),
+              itemCount: messages.length,
+              itemBuilder: (context, index) {
+                final message = messages[index];
+                return Align(
+                  alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                    decoration: BoxDecoration(
+                      color: message.isUser ? Colors.blue[600] : Colors.grey[800],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                    child: Text(
+                      message.text,
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ),
                 );
               },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    onSubmitted: (_) => _sendMessage(),
+                    decoration: InputDecoration(
+                      hintText: 'Ask Srishti to code or run commands...',
+                      filled: true,
+                      fillColor: Colors.black.withOpacity(0.3),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.white),
+                  onPressed: _sendMessage,
+                  iconSize: 24,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    padding: const EdgeInsets.all(15),
+                    shape: const CircleBorder(),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

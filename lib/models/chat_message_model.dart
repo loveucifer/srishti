@@ -1,16 +1,7 @@
-enum ChatMessageRole { user, assistant }
-
+// A more robust ChatMessage model.
 class ChatMessage {
-  final ChatMessageRole role;
-  final String content;
+  final String text;
+  final bool isUser;
 
-  // Added 'const' to the constructor
-  const ChatMessage({required this.role, required this.content});
-
-  Map<String, dynamic> toJson() {
-    return {
-      'role': role.name,
-      'content': content,
-    };
-  }
+  const ChatMessage({required this.text, required this.isUser});
 }
