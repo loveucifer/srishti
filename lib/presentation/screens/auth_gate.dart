@@ -1,26 +1,25 @@
+// lib/presentation/screens/auth_gate.dart
 import 'package:flutter/material.dart';
-import 'package:srishti/core/services/supabase_service.dart';
 import 'package:srishti/presentation/screens/auth_screen.dart';
-import 'package:srishti/presentation/screens/ide_screen.dart'; // Import the new IDE screen
+// CORRECTED: Import the new IDEScreen
+import 'package:srishti/presentation/screens/ide_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  const AuthGate({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AuthState>(
-      stream: SupabaseService.client.auth.onAuthStateChange,
+      stream: Supabase.instance.client.auth.onAuthStateChange,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
         if (snapshot.hasData && snapshot.data?.session != null) {
-          // User is logged in, show the new IdeScreen.
-          return const IdeScreen();
+          // CORRECTED: Navigate to the IDEScreen after login
+          return const IDEScreen(); 
         } else {
-          // User is not logged in, show the AuthScreen.
+          // If not logged in, show the original AuthScreen.
+          // Note: If you want to bypass login for testing, you can temporarily
+          // return IDEScreen() here as well.
           return const AuthScreen();
         }
       },

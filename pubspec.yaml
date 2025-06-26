@@ -4,13 +4,11 @@ description: "Srishti: The Intelligent Creation Engine."
 # Prevent accidental publishing to pub.dev.
 publish_to: 'none'
 
-# The following defines the version and build number for your application.
 version: 1.0.0+1
 
 environment:
   sdk: '>=3.3.3 <4.0.0'
 
-# Dependencies specify other packages that your package needs in order to work.
 dependencies:
   flutter:
     sdk: flutter
@@ -29,8 +27,15 @@ dependencies:
   drag_and_drop_lists: ^0.4.2
   flutter_syntax_view: ^4.1.7
   flutter_markdown: ^0.7.7+1
-  webview_flutter: ^4.7.0
-  
+  webview_flutter: ^4.0.0
+  webview_flutter_web: ^0.2.2+1
+  xterm: ^4.0.0
+  intl: ^0.18.1
+  resizable_widget: ^1.0.5
+  flutter_code_editor: ^0.3.0
+  provider: ^6.0.5
+  uuid: ^4.3.3
+
 
 dev_dependencies:
   flutter_test:
@@ -38,12 +43,9 @@ dev_dependencies:
 
   flutter_lints: ^3.0.0
 
-# The following section is specific to Flutter packages.
 flutter:
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # This makes the .env file and fonts available to the app at runtime.
   assets:
     - .env
     - assets/fonts/

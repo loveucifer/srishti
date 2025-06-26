@@ -1,3 +1,5 @@
+// lib/presentation/screens/ai_assistant_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,7 +145,7 @@ class AiAssistantScreen extends ConsumerWidget {
   }
 }
 
-class ChatMessageWidget extends StatelessWidget {
+class ChatMessageWidget extends ConsumerWidget { // Made this a ConsumerWidget
   final ChatMessage message;
   const ChatMessageWidget({super.key, required this.message});
 
@@ -165,7 +167,7 @@ class ChatMessageWidget extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) { // Added WidgetRef
     final isUser = message.role == ChatMessageRole.user;
     final chunks = isUser ? [ContentChunk(type: 'text', content: message.content)] : _parseContent(message.content);
 
@@ -190,14 +192,16 @@ class ChatMessageWidget extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const Spacer(),
-                    if (!isUser) // Show save button only for AI messages
+                    if (!isUser)
                       IconButton(
                         icon: const Icon(Icons.save_alt_outlined, size: 20, color: Colors.white70),
                         tooltip: 'Save Generation',
                         onPressed: () async {
-                           // This requires the widget to be a ConsumerWidget to access ref.
-                           // For now, this is a placeholder. We will wire this up properly.
-                           print("Save button tapped");
+                           // Now we can use ref here to call the project service
+                           await ref.read(projectServiceProvider).saveProject(message.content);
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('Generation saved!'), backgroundColor: Colors.green)
+                           );
                         },
                       ),
                   ],

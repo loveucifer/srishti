@@ -1,25 +1,40 @@
+// lib/core/services/ai_service.dart
+
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:srishti/core/services/supabase_service.dart';
-import 'package:srishti/models/chat_message_model.dart'; // Import the new model
+import 'package:srishti/models/chat_message_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class AiService {
-  final _client = SupabaseService.client;
+// CORRECTED: Define the provider so the UI can access the service.
+final aiServiceProvider = Provider((ref) => AIService());
 
-  // Update the method to accept a list of messages
+class AIService {
+  final _supabase = Supabase.instance.client;
+
+  // This method is called by the UI.
   Future<String> getAiResponse(List<ChatMessage> messages) async {
-    final response = await _client.functions.invoke(
-      'generate-code',
-      // Pass the list of messages in the body
-      body: {'messages': messages.map((m) => m.toJson()).toList()},
-    );
+    try {
+      // The body now correctly maps the messages list to a list of JSON maps.
+      final response = await _supabase.functions.invoke('ai-chat',
+          body: {'messages': messages.map((m) => m.toJson()).toList()});
 
-    if (response.data is Map && response.data['error'] != null) {
-      throw Exception('Failed to get response: ${response.data['error']}');
+      if (response.status == 200) {
+        // Assuming the edge function returns a map with a 'reply' key.
+        return response.data['reply'] as String;
+      } else {
+        throw Exception(
+            'Failed to get AI response: ${response.status} ${response.data}');
+      }
+    } catch (e) {
+      print('Error invoking Supabase function: $e');
+      rethrow;
     }
+  }
 
-    // The edge function now returns 'content' instead of 'code'
-    return response.data['content'];
+  // This is a helper function that can be used if needed.
+  String extractHtmlContent(String response) {
+    final codeBlockRegex = RegExp(r"```html\s*([\s\S]+?)\s*```");
+    final match = codeBlockRegex.firstMatch(response);
+    return match?.group(1) ?? response;
   }
 }
-
-final aiServiceProvider = Provider((ref) => AiService());
