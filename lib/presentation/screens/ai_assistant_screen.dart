@@ -1,5 +1,3 @@
-// lib/presentation/screens/ai_assistant_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +7,9 @@ import 'package:srishti/core/services/project_service.dart';
 import 'package:srishti/models/chat_message_model.dart';
 import 'package:srishti/presentation/screens/saved_generations_screen.dart';
 import 'package:srishti/presentation/widgets/gradient_background.dart';
+// Ensure this import is correct and present to access global providers like htmlContentProvider and terminalOutputProvider
+import 'package:srishti/presentation/screens/canvas_pane.dart';
+
 
 // Represents a chunk of content, either plain text or a code block
 class ContentChunk {
@@ -33,6 +34,7 @@ class AiAssistantScreen extends ConsumerWidget {
     // The TextEditingController can be created here, no need for a stateful widget.
     final promptController = TextEditingController();
     final messages = ref.watch(messagesProvider);
+    // Corrected: Watch the isLoadingProvider, not a local variable named 'isLoading'
     final isLoading = ref.watch(isLoadingProvider);
 
     // This method is now defined inside build where it has access to ref and context
@@ -49,8 +51,31 @@ class AiAssistantScreen extends ConsumerWidget {
       try {
         final response = await ref.read(aiServiceProvider).getAiResponse(ref.read(messagesProvider));
         ref.read(messagesProvider.notifier).update((state) => [...state, ChatMessage(role: ChatMessageRole.assistant, content: response)]);
+
+        // Check if the AI response contains HTML code and update the preview
+        final regex = RegExp(r"```html\s*([\s\S]*?)\s*```", multiLine: true);
+        final match = regex.firstMatch(response);
+
+        if (match != null && match.group(1) != null) {
+          final htmlCode = match.group(1)!.trim();
+          // Access htmlContentProvider using ref.read() as it's a global provider
+          // This line requires htmlContentProvider to be a top-level final variable in canvas_pane.dart
+          ref.read(htmlContentProvider.notifier).state = htmlCode;
+        } else {
+          // If no HTML code block is found, you might want to clear the preview
+          // For now, let's just keep the existing content or show a placeholder for non-HTML responses
+          // ref.read(htmlContentProvider.notifier).state = '<html><body><h1 style="color: grey; text-align: center; margin-top: 50px;">No HTML preview available.</h1></body></html>';
+        }
+
       } catch (e) {
         ref.read(messagesProvider.notifier).update((state) => [...state, ChatMessage(role: ChatMessageRole.assistant, content: "Error: ${e.toString()}")]);
+        // Also update terminal/preview with error
+        // Access terminalOutputProvider using ref.read() as it's a global provider
+        // This line requires terminalOutputProvider to be a top-level final variable in canvas_pane.dart
+        ref.read(terminalOutputProvider.notifier).state = "Error: ${e.toString()}";
+        // Access htmlContentProvider using ref.read() as it's a global provider
+        // This line requires htmlContentProvider to be a top-level final variable in canvas_pane.dart
+        ref.read(htmlContentProvider.notifier).state = '<html><body><h1 style="color: red; text-align: center; margin-top: 50px;">Error generating content.</h1></body></html>';
       } finally {
         ref.read(isLoadingProvider.notifier).state = false;
       }
@@ -96,11 +121,12 @@ class AiAssistantScreen extends ConsumerWidget {
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
                           final message = messages[index];
+                          // Pass ref to ChatMessageWidget as it's now a ConsumerWidget
                           return ChatMessageWidget(message: message);
                         },
                       ),
               ),
-              if (isLoading)
+              if (isLoading) // Corrected: Use the watched 'isLoading' variable
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0),
                   child: Center(child: CircularProgressIndicator()),
@@ -127,12 +153,12 @@ class AiAssistantScreen extends ConsumerWidget {
                         border: InputBorder.none,
                         suffixIcon: IconButton(
                           padding: const EdgeInsets.only(right: 12),
-                          onPressed: isLoading ? null : sendMessage,
+                          onPressed: isLoading ? null : sendMessage, // Corrected: Use 'isLoading' variable
                           icon: const Icon(Icons.arrow_upward_rounded, size: 24),
                           color: Colors.white,
                         ),
                       ),
-                      onSubmitted: isLoading ? null : (_) => sendMessage(),
+                      onSubmitted: isLoading ? null : (_) => sendMessage(), // Corrected: Use 'isLoading' variable
                     ),
                   ),
                 ),
@@ -145,21 +171,27 @@ class AiAssistantScreen extends ConsumerWidget {
   }
 }
 
-class ChatMessageWidget extends ConsumerWidget { // Made this a ConsumerWidget
+// Converted to ConsumerWidget to access Riverpod ref for saving generations
+class ChatMessageWidget extends ConsumerWidget {
   final ChatMessage message;
   const ChatMessageWidget({super.key, required this.message});
 
+  // Parses content to separate plain text from code blocks
   List<ContentChunk> _parseContent(String content) {
     final chunks = <ContentChunk>[];
-    final regex = RegExp(r"```[\s\S]*?```", multiLine: true);
+    // Regex to find blocks enclosed by triple backticks (```)
+    final regex = RegExp(r"```(?:\w*\n)?([\s\S]*?)```", multiLine: true);
     int lastEnd = 0;
     for (final match in regex.allMatches(content)) {
+      // Add text before the code block
       if (match.start > lastEnd) {
         chunks.add(ContentChunk(type: 'text', content: content.substring(lastEnd, match.start)));
       }
+      // Add the code block itself
       chunks.add(ContentChunk(type: 'code', content: match.group(0)!));
       lastEnd = match.end;
     }
+    // Add any remaining text after the last code block
     if (lastEnd < content.length) {
       chunks.add(ContentChunk(type: 'text', content: content.substring(lastEnd)));
     }
@@ -167,7 +199,7 @@ class ChatMessageWidget extends ConsumerWidget { // Made this a ConsumerWidget
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) { // Added WidgetRef
+  Widget build(BuildContext context, WidgetRef ref) { // Added WidgetRef ref
     final isUser = message.role == ChatMessageRole.user;
     final chunks = isUser ? [ContentChunk(type: 'text', content: message.content)] : _parseContent(message.content);
 
@@ -192,16 +224,43 @@ class ChatMessageWidget extends ConsumerWidget { // Made this a ConsumerWidget
                       style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     const Spacer(),
-                    if (!isUser)
+                    if (!isUser) // Show save button only for AI messages
                       IconButton(
                         icon: const Icon(Icons.save_alt_outlined, size: 20, color: Colors.white70),
                         tooltip: 'Save Generation',
                         onPressed: () async {
-                           // Now we can use ref here to call the project service
-                           await ref.read(projectServiceProvider).saveProject(message.content);
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             const SnackBar(content: Text('Generation saved!'), backgroundColor: Colors.green)
-                           );
+                           // Access ProjectService via ref to save the generation
+                           try {
+                             // Assuming the first message in the list is the user's prompt
+                             final userPrompt = ref.read(messagesProvider.notifier).state.firstWhere(
+                               (msg) => msg.role == ChatMessageRole.user,
+                               // Ensure ChatMessage constructor is const if used in orElse
+                               orElse: () => const ChatMessage(role: ChatMessageRole.user, content: 'Untitled Generation'),
+                             ).content;
+
+                             await ref.read(projectServiceProvider).saveGeneration(
+                               name: userPrompt, // Use the user's prompt as the project name
+                               content: message.content, // Save the full AI response
+                               // When saving to Supabase, we might want to also save the 'files' map
+                               // For now, let's just save 'content'. If 'files' needs to be saved,
+                               // the ProjectService.saveGeneration method and Supabase schema would need to be updated.
+                             );
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBar(
+                                 content: Text('Generation saved successfully!'),
+                                 behavior: SnackBarBehavior.floating,
+                                 backgroundColor: Colors.green,
+                               ),
+                             );
+                           } catch (e) {
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               SnackBar(
+                                 content: Text('Failed to save generation: ${e.toString()}'),
+                                 behavior: SnackBarBehavior.floating,
+                                 backgroundColor: Colors.red,
+                               ),
+                             );
+                           }
                         },
                       ),
                   ],
@@ -211,6 +270,7 @@ class ChatMessageWidget extends ConsumerWidget { // Made this a ConsumerWidget
                   if (chunk.type == 'text' && chunk.content.trim().isNotEmpty) {
                     return SelectableText(chunk.content.trim(), style: const TextStyle(color: Colors.white, fontSize: 16));
                   } else if (chunk.type == 'code') {
+                    // Remove leading/trailing code block markers and language specifier (if any)
                     final codeContent = chunk.content.replaceAll(RegExp(r"^```(\w*\n)?|```$"), "").trim();
                     return CopyableCodeBlock(code: codeContent);
                   } else {
@@ -223,7 +283,7 @@ class ChatMessageWidget extends ConsumerWidget { // Made this a ConsumerWidget
         ],
       ),
     );
-  }
+  } // The closing brace for the build method was missing or misplaced, now corrected.
 }
 
 class CopyableCodeBlock extends StatelessWidget {

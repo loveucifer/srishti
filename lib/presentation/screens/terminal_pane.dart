@@ -1,32 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class TerminalPane extends StatelessWidget {
-  const TerminalPane({Key? key}) : super(key: key);
+  const TerminalPane({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF1E1E1E),
-      padding: const EdgeInsets.all(12.0),
+      color: Colors.black.withOpacity(0.2), // Dark background for terminal
+      padding: const EdgeInsets.all(16.0),
+      alignment: Alignment.topLeft,
       child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'SRISHTI TERMINAL',
-              style: GoogleFonts.robotoMono(color: Colors.white70, fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '[${DateTime.now().toIso8601String()}] Live preview session started.',
-              style: GoogleFonts.robotoMono(color: Colors.greenAccent, fontSize: 13),
-            ),
-             Text(
-              '> Ready.',
-              style: GoogleFonts.robotoMono(color: Colors.white, fontSize: 13),
-            ),
-          ],
+        child: Text(
+          'Welcome to the Srishti Terminal!\n\nThis is a placeholder. Command execution and output will appear here in future updates.',
+          style: TextStyle(
+            color: Colors.white70,
+            fontFamily: 'monospace',
+            fontSize: 14,
+          ),
         ),
       ),
     );

@@ -2,48 +2,49 @@ import 'package:flutter/material.dart';
 
 class FileExplorer extends StatelessWidget {
   final Map<String, String> files;
-  final String? selectedFile;
-  final Function(String) onFileSelected;
+  final String selectedFile;
+  final ValueChanged<String> onFileSelected;
 
   const FileExplorer({
-    Key? key,
+    super.key,
     required this.files,
-    this.selectedFile,
+    required this.selectedFile,
     required this.onFileSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Theme.of(context).colorScheme.surface.withOpacity(0.1),
-      child: ListView(
-        children: files.keys.map((fileName) {
-          final isSelected = fileName == selectedFile;
-          return Material(
-            color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.2) : Colors.transparent,
-            child: InkWell(
-              onTap: () => onFileSelected(fileName),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-                child: Row(
-                  children: [
-                    Icon(_getIconForFile(fileName), size: 18, color: Theme.of(context).colorScheme.primary),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(fileName)),
-                  ],
-                ),
-              ),
+      color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.1), // Background for file explorer
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Files',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
             ),
-          );
-        }).toList(),
+          ),
+          Expanded(
+            child: ListView(
+              children: files.keys.map((fileName) {
+                final isSelected = fileName == selectedFile;
+                return ListTile(
+                  title: Text(
+                    fileName,
+                    style: TextStyle(
+                      color: isSelected ? Colors.lightBlueAccent : Colors.white70,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                  tileColor: isSelected ? Colors.lightBlueAccent.withOpacity(0.2) : null,
+                  onTap: () => onFileSelected(fileName),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  IconData _getIconForFile(String fileName) {
-    if (fileName.endsWith('.html')) return Icons.code;
-    if (fileName.endsWith('.css')) return Icons.color_lens_outlined;
-    if (fileName.endsWith('.js')) return Icons.javascript;
-    return Icons.insert_drive_file_outlined;
   }
 }
